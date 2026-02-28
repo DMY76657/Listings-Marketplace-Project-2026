@@ -18,24 +18,6 @@ export async function register(email, password, displayName) {
     throw new Error('Registration failed: user was not created.')
   }
 
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .insert({
-      id: user.id,
-      display_name: displayName,
-    })
-
-  if (profileError) throw profileError
-
-  const { error: roleError } = await supabase
-    .from('user_roles')
-    .insert({
-      user_id: user.id,
-      role: 'user',
-    })
-
-  if (roleError) throw roleError
-
   return user
 }
 
