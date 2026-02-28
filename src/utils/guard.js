@@ -1,8 +1,13 @@
 import supabase from '../services/supabaseClient.js'
-import { getSession } from '../services/authService.js'
+
+async function fetchSession() {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  return data?.session ?? null
+}
 
 export async function requireAuth() {
-  const session = await getSession()
+  const session = await fetchSession()
 
   if (!session) {
     window.location.href = '/login.html'
@@ -13,7 +18,7 @@ export async function requireAuth() {
 }
 
 export async function requireAdmin() {
-  const session = await getSession()
+  const session = await fetchSession()
 
   if (!session) {
     window.location.href = '/login.html'
@@ -37,7 +42,7 @@ export async function requireAdmin() {
 }
 
 export async function redirectIfLoggedIn() {
-  const session = await getSession()
+  const session = await fetchSession()
 
   if (session) {
     window.location.href = '/index.html'
