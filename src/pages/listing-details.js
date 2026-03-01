@@ -1,5 +1,4 @@
 import supabase from '../services/supabaseClient.js'
-import { getSession } from '../services/authService.js'
 import { getById, remove as removeListing } from '../services/listingsService.js'
 import { getDownloadUrl } from '../services/storageService.js'
 import {
@@ -7,13 +6,9 @@ import {
   add as addComment,
   remove as removeComment,
 } from '../services/commentsService.js'
+import { initNavbar } from '../components/navbar.js'
 
 const elements = {
-  navAddListing: document.getElementById('navAddListing'),
-  navProfile: document.getElementById('navProfile'),
-  navLogin: document.getElementById('navLogin'),
-  navRegister: document.getElementById('navRegister'),
-  navLogout: document.getElementById('navLogout'),
   listingTitle: document.getElementById('listingTitle'),
   listingDescription: document.getElementById('listingDescription'),
   listingPrice: document.getElementById('listingPrice'),
@@ -38,14 +33,6 @@ let isAdmin = false
 function toggleVisibility(element, shouldShow) {
   if (!element) return
   element.classList.toggle('d-none', !shouldShow)
-}
-
-function setNavbarByAuth(isLoggedIn) {
-  toggleVisibility(elements.navAddListing, isLoggedIn)
-  toggleVisibility(elements.navProfile, isLoggedIn)
-  toggleVisibility(elements.navLogout, isLoggedIn)
-  toggleVisibility(elements.navLogin, !isLoggedIn)
-  toggleVisibility(elements.navRegister, !isLoggedIn)
 }
 
 function formatPrice(value) {
@@ -233,12 +220,6 @@ async function handleDeleteListing() {
   }
 }
 
-async function handleLogout() {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
-  window.location.reload()
-}
-
 function bindEvents() {
   elements.editListingBtn?.addEventListener('click', () => {
     window.location.href = `/listing-edit.html?id=${listing.id}`
@@ -274,14 +255,6 @@ function bindEvents() {
   })
 
   elements.commentForm?.addEventListener('submit', handleCommentSubmit)
-
-  elements.navLogout?.addEventListener('click', async () => {
-    try {
-      await handleLogout()
-    } catch (error) {
-      alert(error?.message || 'Logout failed.')
-    }
-  })
 }
 
 async function init() {
@@ -294,9 +267,8 @@ async function init() {
     return
   }
 
-  const session = await getSession()
-  currentUser = session?.user ?? null
-  setNavbarByAuth(Boolean(currentUser))
+  const navbarState = await initNavbar()
+  currentUser = navbarState.user
   toggleVisibility(elements.commentFormWrapper, Boolean(currentUser))
 
   isAdmin = currentUser ? await fetchIsAdmin(currentUser.id) : false

@@ -1,8 +1,10 @@
 import { login } from '../services/authService.js'
 import { redirectIfLoggedIn } from '../utils/guard.js'
+import { initNavbar } from '../components/navbar.js'
 
 async function initializePage() {
   try {
+    await initNavbar()
     await redirectIfLoggedIn()
 
     const form = document.getElementById('login-form')

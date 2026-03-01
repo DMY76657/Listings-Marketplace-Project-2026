@@ -1,14 +1,9 @@
 import supabase from '../services/supabaseClient.js'
-import { getSession } from '../services/authService.js'
+import { initNavbar } from '../components/navbar.js'
 
 const FALLBACK_IMAGE = 'https://via.placeholder.com/600x400?text=No+Image'
 
 const elements = {
-  navAddListing: document.getElementById('navAddListing'),
-  navProfile: document.getElementById('navProfile'),
-  navLogin: document.getElementById('navLogin'),
-  navRegister: document.getElementById('navRegister'),
-  navLogout: document.getElementById('navLogout'),
   searchInput: document.getElementById('searchInput'),
   minPriceInput: document.getElementById('minPriceInput'),
   maxPriceInput: document.getElementById('maxPriceInput'),
@@ -17,20 +12,6 @@ const elements = {
 }
 
 let allListings = []
-
-function toggleVisibility(element, shouldShow) {
-  if (!element) return
-  element.classList.toggle('d-none', !shouldShow)
-}
-
-function setNavbarByAuth(isLoggedIn) {
-  toggleVisibility(elements.navAddListing, isLoggedIn)
-  toggleVisibility(elements.navProfile, isLoggedIn)
-  toggleVisibility(elements.navLogout, isLoggedIn)
-
-  toggleVisibility(elements.navLogin, !isLoggedIn)
-  toggleVisibility(elements.navRegister, !isLoggedIn)
-}
 
 function formatPrice(value) {
   if (value === null || value === undefined || value === '') return 'N/A'
@@ -125,28 +106,14 @@ async function fetchPublishedListings() {
   return listingsWithImage
 }
 
-async function handleLogout() {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
-  window.location.reload()
-}
-
 async function init() {
   try {
-    const session = await getSession()
-    setNavbarByAuth(Boolean(session))
+    await initNavbar()
 
     allListings = await fetchPublishedListings()
     renderListings(allListings)
 
     elements.searchBtn?.addEventListener('click', applyClientFilters)
-    elements.navLogout?.addEventListener('click', async () => {
-      try {
-        await handleLogout()
-      } catch (error) {
-        console.error('Logout failed:', error)
-      }
-    })
   } catch (error) {
     console.error('Failed to initialize homepage:', error)
     renderListings([])

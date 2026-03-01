@@ -2,6 +2,7 @@ import supabase from '../services/supabaseClient.js'
 import { getCurrentUser } from '../services/authService.js'
 import { getProfile, updateProfile } from '../services/profileService.js'
 import { requireAuth } from '../utils/guard.js'
+import { initNavbar } from '../components/navbar.js'
 
 const PLACEHOLDER_AVATAR = 'https://via.placeholder.com/120?text=Avatar'
 
@@ -29,6 +30,8 @@ async function initializePage() {
   try {
     const session = await requireAuth()
     if (!session) return
+
+    await initNavbar()
 
     const user = await getCurrentUser()
     if (!user) {

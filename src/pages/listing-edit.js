@@ -3,13 +3,9 @@ import { requireAuth } from '../utils/guard.js'
 import { getCurrentUser } from '../services/authService.js'
 import { getById, update as updateListing } from '../services/listingsService.js'
 import { uploadListingImages, deleteImage } from '../services/storageService.js'
+import { initNavbar } from '../components/navbar.js'
 
 const elements = {
-  navAddListing: document.getElementById('navAddListing'),
-  navProfile: document.getElementById('navProfile'),
-  navLogin: document.getElementById('navLogin'),
-  navRegister: document.getElementById('navRegister'),
-  navLogout: document.getElementById('navLogout'),
   editListingForm: document.getElementById('editListingForm'),
   saveBtn: document.getElementById('saveBtn'),
   title: document.getElementById('title'),
@@ -24,19 +20,6 @@ let listingId = null
 let currentUser = null
 let listing = null
 let isAdmin = false
-
-function toggleVisibility(element, shouldShow) {
-  if (!element) return
-  element.classList.toggle('d-none', !shouldShow)
-}
-
-function setNavbarByAuth(isLoggedIn) {
-  toggleVisibility(elements.navAddListing, isLoggedIn)
-  toggleVisibility(elements.navProfile, isLoggedIn)
-  toggleVisibility(elements.navLogout, isLoggedIn)
-  toggleVisibility(elements.navLogin, !isLoggedIn)
-  toggleVisibility(elements.navRegister, !isLoggedIn)
-}
 
 async function fetchIsAdmin(userId) {
   const { data, error } = await supabase
@@ -177,12 +160,6 @@ async function handleSave(event) {
   }
 }
 
-async function handleLogout() {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
-  window.location.reload()
-}
-
 async function init() {
   const session = await requireAuth()
   if (!session) return
@@ -193,7 +170,7 @@ async function init() {
     return
   }
 
-  setNavbarByAuth(true)
+  await initNavbar()
   isAdmin = await fetchIsAdmin(currentUser.id)
 
   const params = new URLSearchParams(window.location.search)
@@ -219,13 +196,6 @@ async function init() {
 
   elements.editListingForm?.addEventListener('submit', handleSave)
   elements.existingImagesGrid?.addEventListener('click', handleDeleteImageClick)
-  elements.navLogout?.addEventListener('click', async () => {
-    try {
-      await handleLogout()
-    } catch (error) {
-      alert(error?.message || 'Logout failed.')
-    }
-  })
 }
 
 init().catch((error) => {

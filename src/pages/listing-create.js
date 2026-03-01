@@ -3,13 +3,9 @@ import { requireAuth } from '../utils/guard.js'
 import { getCurrentUser } from '../services/authService.js'
 import { create as createListing } from '../services/listingsService.js'
 import { uploadListingImages } from '../services/storageService.js'
+import { initNavbar } from '../components/navbar.js'
 
 const elements = {
-  navAddListing: document.getElementById('navAddListing'),
-  navProfile: document.getElementById('navProfile'),
-  navLogin: document.getElementById('navLogin'),
-  navRegister: document.getElementById('navRegister'),
-  navLogout: document.getElementById('navLogout'),
   createListingForm: document.getElementById('createListingForm'),
   submitBtn: document.getElementById('submitBtn'),
   title: document.getElementById('title'),
@@ -17,26 +13,6 @@ const elements = {
   price: document.getElementById('price'),
   status: document.getElementById('status'),
   images: document.getElementById('images'),
-}
-
-function toggleVisibility(element, shouldShow) {
-  if (!element) return
-  element.classList.toggle('d-none', !shouldShow)
-}
-
-function setNavbarByAuth(isLoggedIn) {
-  toggleVisibility(elements.navAddListing, isLoggedIn)
-  toggleVisibility(elements.navProfile, isLoggedIn)
-  toggleVisibility(elements.navLogout, isLoggedIn)
-
-  toggleVisibility(elements.navLogin, !isLoggedIn)
-  toggleVisibility(elements.navRegister, !isLoggedIn)
-}
-
-async function logoutAndReload() {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
-  window.location.reload()
 }
 
 async function insertListingImagesRows(listingId, ownerId, imagesMeta) {
@@ -88,7 +64,7 @@ async function init() {
   const session = await requireAuth()
   if (!session) return
 
-  setNavbarByAuth(true)
+  await initNavbar()
 
   const user = await getCurrentUser()
   if (!user) {
@@ -98,14 +74,6 @@ async function init() {
 
   elements.createListingForm?.addEventListener('submit', (event) => {
     handleSubmit(event, user)
-  })
-
-  elements.navLogout?.addEventListener('click', async () => {
-    try {
-      await logoutAndReload()
-    } catch (error) {
-      alert(error?.message || 'Logout failed.')
-    }
   })
 }
 
