@@ -11,7 +11,7 @@ async function initializePage() {
     await initNavbar()
     await redirectIfLoggedIn()
 
-    const form = document.getElementById('login-form')
+    const form = document.getElementById('loginForm')
     if (!form) return
 
     form.addEventListener('submit', async (event) => {

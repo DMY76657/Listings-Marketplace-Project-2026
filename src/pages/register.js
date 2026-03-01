@@ -11,16 +11,16 @@ async function initializePage() {
     await initNavbar()
     await redirectIfLoggedIn()
 
-    const form = document.getElementById('register-form')
+    const form = document.getElementById('registerForm')
     if (!form) return
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault()
 
-      const displayName = document.getElementById('display_name')?.value?.trim()
+      const displayName = document.getElementById('displayName')?.value?.trim()
       const email = document.getElementById('email')?.value?.trim()
       const password = document.getElementById('password')?.value
-      const confirmPassword = document.getElementById('confirm_password')?.value
+      const confirmPassword = document.getElementById('confirmPassword')?.value
 
       if (password !== confirmPassword) {
         showToast('Passwords do not match.', 'warning')

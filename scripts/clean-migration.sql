@@ -24,21 +24,9 @@ DROP FUNCTION IF EXISTS public.is_admin();
 DROP FUNCTION IF EXISTS public.handle_new_user();
 
 -- =====================================================
--- 3) Drop existing triggers
+-- 3) Drop existing trigger
 -- =====================================================
-DO $$
-DECLARE
-  trigger_record record;
-BEGIN
-  FOR trigger_record IN
-    SELECT tgname
-    FROM pg_trigger
-    WHERE tgrelid = 'auth.users'::regclass
-      AND NOT tgisinternal
-  LOOP
-    EXECUTE format('DROP TRIGGER IF EXISTS %I ON auth.users', trigger_record.tgname);
-  END LOOP;
-END $$;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
 -- =====================================================
 -- 4) Re-create functions
@@ -63,16 +51,21 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, display_name)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1))
-  )
-  ON CONFLICT (id) DO NOTHING;
+  BEGIN
+    INSERT INTO public.profiles (id, display_name)
+    VALUES (
+      NEW.id,
+      COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1))
+    )
+    ON CONFLICT (id) DO NOTHING;
 
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'user')
-  ON CONFLICT (user_id) DO NOTHING;
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'user')
+    ON CONFLICT (user_id) DO NOTHING;
+  EXCEPTION
+    WHEN others THEN
+      RAISE WARNING 'handle_new_user failed for user %: %', NEW.id, SQLERRM;
+  END;
 
   RETURN NEW;
 END;
@@ -117,7 +110,8 @@ USING (auth.uid() = user_id);
 CREATE POLICY roles_admin_all
 ON public.user_roles
 FOR ALL
-USING (public.is_admin());
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
 
 -- listings
 CREATE POLICY listings_select
