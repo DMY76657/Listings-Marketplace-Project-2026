@@ -1,8 +1,12 @@
 import { register } from '../services/authService.js'
 import { redirectIfLoggedIn } from '../utils/guard.js'
 import { initNavbar } from '../components/navbar.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 
 async function initializePage() {
+  showLoader()
+
   try {
     await initNavbar()
     await redirectIfLoggedIn()
@@ -19,19 +23,24 @@ async function initializePage() {
       const confirmPassword = document.getElementById('confirm_password')?.value
 
       if (password !== confirmPassword) {
-        alert('Passwords do not match.')
+        showToast('Passwords do not match.', 'warning')
         return
       }
 
       try {
+        showLoader()
         await register(email, password, displayName)
         window.location.href = '/index.html'
       } catch (error) {
-        alert(error?.message || 'Registration failed.')
+        showToast(error?.message || 'Registration failed.', 'danger')
+      } finally {
+        hideLoader()
       }
     })
   } catch (error) {
-    alert(error?.message || 'Unable to load registration page.')
+    showToast(error?.message || 'Unable to load registration page.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 

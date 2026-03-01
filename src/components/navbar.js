@@ -1,5 +1,6 @@
 import supabase from '../services/supabaseClient.js'
 import { getSession } from '../services/authService.js'
+import { showToast } from './toast.js'
 
 function toggleVisibility(element, shouldShow) {
   if (!element) return
@@ -48,7 +49,7 @@ export async function initNavbar(options = {}) {
         if (typeof options.onLogoutError === 'function') {
           options.onLogoutError(error)
         } else {
-          alert(error?.message || 'Logout failed.')
+          showToast(error?.message || 'Logout failed.', 'danger')
         }
       }
     })

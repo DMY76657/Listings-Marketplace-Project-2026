@@ -7,6 +7,8 @@ import {
   remove as removeComment,
 } from '../services/commentsService.js'
 import { initNavbar } from '../components/navbar.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 
 const elements = {
   listingTitle: document.getElementById('listingTitle'),
@@ -183,7 +185,7 @@ async function handleCommentSubmit(event) {
   event.preventDefault()
 
   if (!currentUser) {
-    alert('Please login to add a comment.')
+    showToast('Please login to add a comment.', 'warning')
     return
   }
 
@@ -194,29 +196,38 @@ async function handleCommentSubmit(event) {
   }
 
   try {
+    showLoader()
     await addComment(listingId, currentUser.id, content)
     elements.commentForm.reset()
     await loadAndRenderComments()
   } catch (error) {
-    alert(error?.message || 'Failed to add comment.')
+    showToast(error?.message || 'Failed to add comment.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 
 async function handleDeleteComment(commentId) {
   try {
+    showLoader()
     await removeComment(commentId)
     await loadAndRenderComments()
   } catch (error) {
-    alert(error?.message || 'Failed to delete comment.')
+    showToast(error?.message || 'Failed to delete comment.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 
 async function handleDeleteListing() {
   try {
+    showLoader()
     await removeListing(listing.id)
     window.location.href = '/index.html'
   } catch (error) {
-    alert(error?.message || 'Failed to delete listing.')
+    showToast(error?.message || 'Failed to delete listing.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 
@@ -237,12 +248,15 @@ function bindEvents() {
     if (!filePath) return
 
     try {
+      showLoader()
       const signedUrl = await getDownloadUrl(filePath, 'listing-images')
       if (signedUrl) {
         window.open(signedUrl, '_blank', 'noopener,noreferrer')
       }
     } catch (error) {
-      alert(error?.message || 'Failed to generate download link.')
+      showToast(error?.message || 'Failed to generate download link.', 'danger')
+    } finally {
+      hideLoader()
     }
   })
 
@@ -258,34 +272,41 @@ function bindEvents() {
 }
 
 async function init() {
+  showLoader()
+
   const params = new URLSearchParams(window.location.search)
   listingId = params.get('id')
 
   if (!listingId) {
-    alert('Missing listing id.')
+    showToast('Missing listing id.', 'warning')
     window.location.href = '/index.html'
+    hideLoader()
     return
   }
 
-  const navbarState = await initNavbar()
-  currentUser = navbarState.user
-  toggleVisibility(elements.commentFormWrapper, Boolean(currentUser))
+  try {
+    const navbarState = await initNavbar()
+    currentUser = navbarState.user
+    toggleVisibility(elements.commentFormWrapper, Boolean(currentUser))
 
-  isAdmin = currentUser ? await fetchIsAdmin(currentUser.id) : false
+    isAdmin = currentUser ? await fetchIsAdmin(currentUser.id) : false
 
-  listing = await getById(listingId)
-  const [images, ownerName] = await Promise.all([
-    fetchListingImages(listingId),
-    fetchOwnerDisplayName(listing.owner_id),
-  ])
+    listing = await getById(listingId)
+    const [images, ownerName] = await Promise.all([
+      fetchListingImages(listingId),
+      fetchOwnerDisplayName(listing.owner_id),
+    ])
 
-  renderListing(ownerName)
-  renderImageGallery(images)
-  renderListingActionButtons()
-  await loadAndRenderComments()
-  bindEvents()
+    renderListing(ownerName)
+    renderImageGallery(images)
+    renderListingActionButtons()
+    await loadAndRenderComments()
+    bindEvents()
+  } finally {
+    hideLoader()
+  }
 }
 
 init().catch((error) => {
-  alert(error?.message || 'Failed to load listing details.')
+  showToast(error?.message || 'Failed to load listing details.', 'danger')
 })

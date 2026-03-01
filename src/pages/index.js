@@ -1,5 +1,7 @@
 import supabase from '../services/supabaseClient.js'
 import { initNavbar } from '../components/navbar.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 
 const FALLBACK_IMAGE = 'https://via.placeholder.com/600x400?text=No+Image'
 
@@ -107,6 +109,8 @@ async function fetchPublishedListings() {
 }
 
 async function init() {
+  showLoader()
+
   try {
     await initNavbar()
 
@@ -116,7 +120,10 @@ async function init() {
     elements.searchBtn?.addEventListener('click', applyClientFilters)
   } catch (error) {
     console.error('Failed to initialize homepage:', error)
+    showToast(error?.message || 'Failed to initialize homepage.', 'danger')
     renderListings([])
+  } finally {
+    hideLoader()
   }
 }
 

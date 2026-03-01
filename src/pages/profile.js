@@ -3,6 +3,8 @@ import { getCurrentUser } from '../services/authService.js'
 import { getProfile, updateProfile } from '../services/profileService.js'
 import { requireAuth } from '../utils/guard.js'
 import { initNavbar } from '../components/navbar.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 
 const PLACEHOLDER_AVATAR = 'https://via.placeholder.com/120?text=Avatar'
 
@@ -27,6 +29,8 @@ async function uploadAvatar(userId, file) {
 }
 
 async function initializePage() {
+  showLoader()
+
   try {
     const session = await requireAuth()
     if (!session) return
@@ -58,12 +62,15 @@ async function initializePage() {
         if (!file) return
 
         try {
+          showLoader()
           const avatarUrl = await uploadAvatar(userId, file)
           await updateProfile(userId, { avatar_url: avatarUrl })
           setAvatarImage(avatarUrl)
-          alert('Avatar updated successfully.')
+          showToast('Avatar updated successfully.', 'success')
         } catch (error) {
-          alert(error?.message || 'Failed to upload avatar.')
+          showToast(error?.message || 'Failed to upload avatar.', 'danger')
+        } finally {
+          hideLoader()
         }
       })
     }
@@ -73,17 +80,22 @@ async function initializePage() {
         event.preventDefault()
 
         try {
+          showLoader()
           const newDisplayName = displayNameInput?.value?.trim() || ''
           const updated = await updateProfile(userId, { display_name: newDisplayName })
           displayNameInput.value = updated?.display_name || ''
-          alert('Profile updated successfully.')
+          showToast('Profile updated successfully.', 'success')
         } catch (error) {
-          alert(error?.message || 'Failed to update profile.')
+          showToast(error?.message || 'Failed to update profile.', 'danger')
+        } finally {
+          hideLoader()
         }
       })
     }
   } catch (error) {
-    alert(error?.message || 'Failed to load profile page.')
+    showToast(error?.message || 'Failed to load profile page.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 

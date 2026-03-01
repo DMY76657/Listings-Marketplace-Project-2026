@@ -1,6 +1,8 @@
 import { requireAdmin } from '../utils/guard.js'
 import { initNavbar } from '../components/navbar.js'
 import { getSession } from '../services/authService.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 import {
   getAllUsers,
   setRole,
@@ -157,13 +159,17 @@ function bindUsersActions() {
     button.disabled = true
 
     try {
+      showLoader()
       await setRole(userId, nextRole)
       const users = await loadUsers()
       const ownerNameById = new Map(users.map((item) => [item.profile.id, item.profile.display_name || 'No name']))
       await loadListings(ownerNameById)
+      showToast('User role updated successfully.', 'success')
     } catch (error) {
-      alert(error?.message || 'Failed to update user role.')
+      showToast(error?.message || 'Failed to update user role.', 'danger')
       button.disabled = false
+    } finally {
+      hideLoader()
     }
   })
 }
@@ -184,11 +190,15 @@ function bindListingsActions(ownerNameById) {
       saveButton.disabled = true
 
       try {
+        showLoader()
         await setListingStatus(listingId, status)
         await loadListings(ownerNameById)
+        showToast('Listing status updated successfully.', 'success')
       } catch (error) {
-        alert(error?.message || 'Failed to update listing status.')
+        showToast(error?.message || 'Failed to update listing status.', 'danger')
         saveButton.disabled = false
+      } finally {
+        hideLoader()
       }
 
       return
@@ -203,16 +213,22 @@ function bindListingsActions(ownerNameById) {
     deleteButton.disabled = true
 
     try {
+      showLoader()
       await deleteListing(listingId)
       await loadListings(ownerNameById)
+      showToast('Listing deleted successfully.', 'success')
     } catch (error) {
-      alert(error?.message || 'Failed to delete listing.')
+      showToast(error?.message || 'Failed to delete listing.', 'danger')
       deleteButton.disabled = false
+    } finally {
+      hideLoader()
     }
   })
 }
 
 async function initializePage() {
+  showLoader()
+
   try {
     const adminSession = await requireAdmin()
     if (!adminSession) return
@@ -230,7 +246,9 @@ async function initializePage() {
     bindUsersActions()
     bindListingsActions(ownerNameById)
   } catch (error) {
-    alert(error?.message || 'Failed to load admin page.')
+    showToast(error?.message || 'Failed to load admin page.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 

@@ -1,8 +1,12 @@
 import { login } from '../services/authService.js'
 import { redirectIfLoggedIn } from '../utils/guard.js'
 import { initNavbar } from '../components/navbar.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 
 async function initializePage() {
+  showLoader()
+
   try {
     await initNavbar()
     await redirectIfLoggedIn()
@@ -17,14 +21,19 @@ async function initializePage() {
       const password = document.getElementById('password')?.value
 
       try {
+        showLoader()
         await login(email, password)
         window.location.href = '/index.html'
       } catch (error) {
-        alert(error?.message || 'Login failed.')
+        showToast(error?.message || 'Login failed.', 'danger')
+      } finally {
+        hideLoader()
       }
     })
   } catch (error) {
-    alert(error?.message || 'Unable to load login page.')
+    showToast(error?.message || 'Unable to load login page.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 

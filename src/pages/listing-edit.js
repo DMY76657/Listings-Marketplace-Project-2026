@@ -4,6 +4,8 @@ import { getCurrentUser } from '../services/authService.js'
 import { getById, update as updateListing } from '../services/listingsService.js'
 import { uploadListingImages, deleteImage } from '../services/storageService.js'
 import { initNavbar } from '../components/navbar.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 
 const elements = {
   editListingForm: document.getElementById('editListingForm'),
@@ -121,10 +123,13 @@ async function handleDeleteImageClick(event) {
   if (!imageId || !filePath) return
 
   try {
+    showLoader()
     await removeListingImage(imageId, filePath)
     await refreshImages()
   } catch (error) {
-    alert(error?.message || 'Failed to delete image.')
+    showToast(error?.message || 'Failed to delete image.', 'danger')
+  } finally {
+    hideLoader()
   }
 }
 
@@ -137,6 +142,7 @@ async function handleSave(event) {
   }
 
   elements.saveBtn.disabled = true
+  showLoader()
 
   try {
     await updateListing(listingId, {
@@ -155,49 +161,57 @@ async function handleSave(event) {
 
     window.location.href = `/listing-details.html?id=${listingId}`
   } catch (error) {
-    alert(error?.message || 'Failed to update listing.')
+    showToast(error?.message || 'Failed to update listing.', 'danger')
     elements.saveBtn.disabled = false
+  } finally {
+    hideLoader()
   }
 }
 
 async function init() {
-  const session = await requireAuth()
-  if (!session) return
+  showLoader()
 
-  currentUser = await getCurrentUser()
-  if (!currentUser) {
-    window.location.href = '/login.html'
-    return
+  try {
+    const session = await requireAuth()
+    if (!session) return
+
+    currentUser = await getCurrentUser()
+    if (!currentUser) {
+      window.location.href = '/login.html'
+      return
+    }
+
+    await initNavbar()
+    isAdmin = await fetchIsAdmin(currentUser.id)
+
+    const params = new URLSearchParams(window.location.search)
+    listingId = params.get('id')
+
+    if (!listingId) {
+      showToast('Missing listing id.', 'warning')
+      window.location.href = '/index.html'
+      return
+    }
+
+    listing = await getById(listingId)
+
+    const canEdit = isAdmin || listing.owner_id === currentUser.id
+    if (!canEdit) {
+      showToast('You do not have access to edit this listing.', 'warning')
+      window.location.href = '/index.html'
+      return
+    }
+
+    fillForm()
+    await refreshImages()
+
+    elements.editListingForm?.addEventListener('submit', handleSave)
+    elements.existingImagesGrid?.addEventListener('click', handleDeleteImageClick)
+  } finally {
+    hideLoader()
   }
-
-  await initNavbar()
-  isAdmin = await fetchIsAdmin(currentUser.id)
-
-  const params = new URLSearchParams(window.location.search)
-  listingId = params.get('id')
-
-  if (!listingId) {
-    alert('Missing listing id.')
-    window.location.href = '/index.html'
-    return
-  }
-
-  listing = await getById(listingId)
-
-  const canEdit = isAdmin || listing.owner_id === currentUser.id
-  if (!canEdit) {
-    alert('You do not have access to edit this listing.')
-    window.location.href = '/index.html'
-    return
-  }
-
-  fillForm()
-  await refreshImages()
-
-  elements.editListingForm?.addEventListener('submit', handleSave)
-  elements.existingImagesGrid?.addEventListener('click', handleDeleteImageClick)
 }
 
 init().catch((error) => {
-  alert(error?.message || 'Failed to load listing edit page.')
+  showToast(error?.message || 'Failed to load listing edit page.', 'danger')
 })

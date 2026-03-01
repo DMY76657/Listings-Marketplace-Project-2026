@@ -4,6 +4,8 @@ import { getCurrentUser } from '../services/authService.js'
 import { create as createListing } from '../services/listingsService.js'
 import { uploadListingImages } from '../services/storageService.js'
 import { initNavbar } from '../components/navbar.js'
+import { showToast } from '../components/toast.js'
+import { showLoader, hideLoader } from '../components/loader.js'
 
 const elements = {
   createListingForm: document.getElementById('createListingForm'),
@@ -40,6 +42,7 @@ async function handleSubmit(event, user) {
   const files = Array.from(elements.images?.files || [])
 
   elements.submitBtn.disabled = true
+  showLoader()
 
   try {
     const listing = await createListing({
@@ -55,28 +58,36 @@ async function handleSubmit(event, user) {
 
     window.location.href = `/listing-details.html?id=${listing.id}`
   } catch (error) {
-    alert(error?.message || 'Failed to create listing.')
+    showToast(error?.message || 'Failed to create listing.', 'danger')
     elements.submitBtn.disabled = false
+  } finally {
+    hideLoader()
   }
 }
 
 async function init() {
-  const session = await requireAuth()
-  if (!session) return
+  showLoader()
 
-  await initNavbar()
+  try {
+    const session = await requireAuth()
+    if (!session) return
 
-  const user = await getCurrentUser()
-  if (!user) {
-    window.location.href = '/login.html'
-    return
+    await initNavbar()
+
+    const user = await getCurrentUser()
+    if (!user) {
+      window.location.href = '/login.html'
+      return
+    }
+
+    elements.createListingForm?.addEventListener('submit', (event) => {
+      handleSubmit(event, user)
+    })
+  } finally {
+    hideLoader()
   }
-
-  elements.createListingForm?.addEventListener('submit', (event) => {
-    handleSubmit(event, user)
-  })
 }
 
 init().catch((error) => {
-  alert(error?.message || 'Failed to load page.')
+  showToast(error?.message || 'Failed to load page.', 'danger')
 })
