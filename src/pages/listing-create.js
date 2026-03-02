@@ -7,6 +7,8 @@ import { initNavbar } from '../components/navbar.js'
 import { showToast } from '../components/toast.js'
 import { showLoader, hideLoader } from '../components/loader.js'
 
+const DEFAULT_LISTING_IMAGE = 'https://via.placeholder.com/600x400?text=No+Image'
+
 const elements = {
   createListingForm: document.getElementById('createListingForm'),
   submitBtn: document.getElementById('submitBtn'),
@@ -46,8 +48,13 @@ async function handleSubmit(event, user) {
   showLoader()
 
   try {
+    const ownerId = user?.id
+    if (!ownerId) {
+      throw new Error('User session is missing. Please login again.')
+    }
+
     const newListingId = crypto.randomUUID()
-    const uploadedImages = await uploadListingImages(user.id, newListingId, files)
+    const uploadedImages = await uploadListingImages(ownerId, newListingId, files)
 
     const listing = await createListing({
       id: newListingId,
@@ -55,12 +62,12 @@ async function handleSubmit(event, user) {
       description: elements.description.value.trim(),
       price: Number(elements.price.value),
       category: elements.category.value,
-      image_url: uploadedImages[0]?.public_url || null,
+      image_url: uploadedImages[0]?.public_url || DEFAULT_LISTING_IMAGE,
       status: elements.status.value,
-      owner_id: user.id,
+      owner_id: ownerId,
     })
 
-    await insertListingImagesRows(listing.id, user.id, uploadedImages)
+    await insertListingImagesRows(listing.id, ownerId, uploadedImages)
 
     window.location.href = `/listing-details.html?id=${listing.id}`
   } catch (error) {
