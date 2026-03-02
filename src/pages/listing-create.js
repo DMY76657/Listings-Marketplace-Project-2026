@@ -13,6 +13,7 @@ const elements = {
   title: document.getElementById('title'),
   description: document.getElementById('description'),
   price: document.getElementById('price'),
+  category: document.getElementById('category'),
   status: document.getElementById('status'),
   images: document.getElementById('images'),
 }
@@ -45,15 +46,20 @@ async function handleSubmit(event, user) {
   showLoader()
 
   try {
+    const newListingId = crypto.randomUUID()
+    const uploadedImages = await uploadListingImages(user.id, newListingId, files)
+
     const listing = await createListing({
+      id: newListingId,
       title: elements.title.value.trim(),
       description: elements.description.value.trim(),
       price: Number(elements.price.value),
+      category: elements.category.value,
+      image_url: uploadedImages[0]?.public_url || null,
       status: elements.status.value,
       owner_id: user.id,
     })
 
-    const uploadedImages = await uploadListingImages(user.id, listing.id, files)
     await insertListingImagesRows(listing.id, user.id, uploadedImages)
 
     window.location.href = `/listing-details.html?id=${listing.id}`

@@ -13,6 +13,7 @@ const elements = {
   title: document.getElementById('title'),
   description: document.getElementById('description'),
   price: document.getElementById('price'),
+  category: document.getElementById('category'),
   status: document.getElementById('status'),
   newImages: document.getElementById('newImages'),
   existingImagesGrid: document.getElementById('existingImagesGrid'),
@@ -21,18 +22,6 @@ const elements = {
 let listingId = null
 let currentUser = null
 let listing = null
-let isAdmin = false
-
-async function fetchIsAdmin(userId) {
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (error) throw error
-  return data?.role === 'admin'
-}
 
 async function fetchListingImages(targetListingId) {
   const { data, error } = await supabase
@@ -85,6 +74,7 @@ function fillForm() {
   elements.title.value = listing.title || ''
   elements.description.value = listing.description || ''
   elements.price.value = listing.price ?? ''
+  elements.category.value = listing.category || 'Electronics'
   elements.status.value = listing.status || 'draft'
 }
 
@@ -145,19 +135,24 @@ async function handleSave(event) {
   showLoader()
 
   try {
-    await updateListing(listingId, {
-      title: elements.title.value.trim(),
-      description: elements.description.value.trim(),
-      price: Number(elements.price.value),
-      status: elements.status.value,
-    })
+    let coverImageUrl = listing.image_url || null
 
     const files = Array.from(elements.newImages?.files || [])
     if (files.length) {
       const uploaded = await uploadListingImages(listing.owner_id, listingId, files)
       await insertListingImagesRows(uploaded)
       elements.newImages.value = ''
+      coverImageUrl = uploaded[0]?.public_url || coverImageUrl
     }
+
+    await updateListing(listingId, {
+      title: elements.title.value.trim(),
+      description: elements.description.value.trim(),
+      price: Number(elements.price.value),
+      category: elements.category.value,
+      image_url: coverImageUrl,
+      status: elements.status.value,
+    })
 
     window.location.href = `/listing-details.html?id=${listingId}`
   } catch (error) {
@@ -182,7 +177,6 @@ async function init() {
     }
 
     await initNavbar()
-    isAdmin = await fetchIsAdmin(currentUser.id)
 
     const params = new URLSearchParams(window.location.search)
     listingId = params.get('id')
@@ -195,7 +189,7 @@ async function init() {
 
     listing = await getById(listingId)
 
-    const canEdit = isAdmin || listing.owner_id === currentUser.id
+    const canEdit = listing.owner_id === currentUser.id
     if (!canEdit) {
       showToast('You do not have access to edit this listing.', 'warning')
       window.location.href = '/index.html'

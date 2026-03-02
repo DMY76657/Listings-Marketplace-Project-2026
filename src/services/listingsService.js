@@ -1,6 +1,6 @@
 import supabase from './supabaseClient.js'
 
-export async function getPublished(search, minPrice, maxPrice) {
+export async function getPublished(search, minPrice, maxPrice, category) {
   let query = supabase
     .from('listings')
     .select('*')
@@ -17,6 +17,10 @@ export async function getPublished(search, minPrice, maxPrice) {
 
   if (maxPrice !== undefined && maxPrice !== null && maxPrice !== '') {
     query = query.lte('price', Number(maxPrice))
+  }
+
+  if (category) {
+    query = query.eq('category', category)
   }
 
   const { data, error } = await query

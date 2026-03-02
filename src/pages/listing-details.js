@@ -99,9 +99,12 @@ function renderImageGallery(images) {
   if (!elements.imageGallery) return
 
   if (!images.length) {
+    const fallbackUrl = listing?.image_url || FALLBACK_IMAGE
     elements.imageGallery.innerHTML = `
-      <div class="col-12">
-        <div class="alert alert-secondary mb-0">No images available.</div>
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card h-100">
+          <img src="${fallbackUrl}" class="card-img-top" alt="Listing image" style="height: 220px; object-fit: cover;" />
+        </div>
       </div>
     `
     return
@@ -132,7 +135,7 @@ function renderImageGallery(images) {
 
 function canManageListing() {
   if (!listing) return false
-  return isAdmin || currentUser?.id === listing.owner_id
+  return currentUser?.id === listing.owner_id
 }
 
 function renderListingActionButtons() {
@@ -220,6 +223,9 @@ async function handleDeleteComment(commentId) {
 }
 
 async function handleDeleteListing() {
+  const confirmed = window.confirm('Are you sure you want to delete this listing?')
+  if (!confirmed) return
+
   try {
     showLoader()
     await removeListing(listing.id)

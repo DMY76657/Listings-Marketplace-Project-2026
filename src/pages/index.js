@@ -1,4 +1,4 @@
-import supabase from '../services/supabaseClient.js'
+import { getPublished, remove as removeListing } from '../services/listingsService.js'
 import { initNavbar } from '../components/navbar.js'
 import { showToast } from '../components/toast.js'
 import { showLoader, hideLoader } from '../components/loader.js'
@@ -9,11 +9,13 @@ const elements = {
   searchInput: document.getElementById('searchInput'),
   minPriceInput: document.getElementById('minPriceInput'),
   maxPriceInput: document.getElementById('maxPriceInput'),
+  categoryFilter: document.getElementById('categoryFilter'),
   searchBtn: document.getElementById('searchBtn'),
   listingsGrid: document.getElementById('listingsGrid'),
 }
 
 let allListings = []
+let currentUser = null
 
 function formatPrice(value) {
   if (value === null || value === undefined || value === '') return 'N/A'
@@ -22,8 +24,13 @@ function formatPrice(value) {
   return `$${amount.toFixed(2)}`
 }
 
+function canManageListing(listing) {
+  return Boolean(currentUser?.id) && currentUser.id === listing.owner_id
+}
+
 function createCard(listing) {
   const imageUrl = listing.image_url || FALLBACK_IMAGE
+  const showOwnerActions = canManageListing(listing)
 
   return `
     <div class="col-12 col-sm-6 col-lg-4">
@@ -31,8 +38,17 @@ function createCard(listing) {
         <img src="${imageUrl}" class="card-img-top" alt="${listing.title}" style="height: 220px; object-fit: cover;" />
         <div class="card-body d-flex flex-column">
           <h5 class="card-title">${listing.title}</h5>
+          <p class="card-text text-muted mb-1">Category: ${listing.category || 'N/A'}</p>
           <p class="card-text text-muted mb-3">Price: ${formatPrice(listing.price)}</p>
-          <a href="/listing-details.html?id=${listing.id}" class="btn btn-outline-primary mt-auto">View</a>
+          <div class="d-grid gap-2 mt-auto">
+            <a href="/listing-details.html?id=${listing.id}" class="btn btn-outline-primary">View</a>
+            ${
+              showOwnerActions
+                ? `<button type="button" class="btn btn-outline-secondary" data-action="edit-listing" data-listing-id="${listing.id}">Edit</button>
+                   <button type="button" class="btn btn-outline-danger" data-action="delete-listing" data-listing-id="${listing.id}">Delete</button>`
+                : ''
+            }
+          </div>
         </div>
       </div>
     </div>
@@ -54,70 +70,98 @@ function renderListings(listings) {
   elements.listingsGrid.innerHTML = listings.map(createCard).join('')
 }
 
-function applyClientFilters() {
-  const searchTerm = elements.searchInput?.value?.trim().toLowerCase() ?? ''
-  const minPriceRaw = elements.minPriceInput?.value
-  const maxPriceRaw = elements.maxPriceInput?.value
-  const minPrice = minPriceRaw ? Number(minPriceRaw) : null
-  const maxPrice = maxPriceRaw ? Number(maxPriceRaw) : null
-
-  const filtered = allListings.filter((listing) => {
-    const title = (listing.title || '').toLowerCase()
-    const price = Number(listing.price)
-    const hasValidPrice = !Number.isNaN(price)
-
-    const matchesTitle = !searchTerm || title.includes(searchTerm)
-    const matchesMin = minPrice === null || (hasValidPrice && price >= minPrice)
-    const matchesMax = maxPrice === null || (hasValidPrice && price <= maxPrice)
-
-    return matchesTitle && matchesMin && matchesMax
-  })
-
-  renderListings(filtered)
+function getFilters() {
+  return {
+    search: elements.searchInput?.value?.trim() || '',
+    minPrice: elements.minPriceInput?.value || null,
+    maxPrice: elements.maxPriceInput?.value || null,
+    category: elements.categoryFilter?.value || '',
+  }
 }
 
-async function fetchPublishedListings() {
-  const { data: listings, error } = await supabase
-    .from('listings')
-    .select('id, title, price, created_at')
-    .eq('status', 'published')
-    .order('created_at', { ascending: false })
+async function loadListings() {
+  const { search, minPrice, maxPrice, category } = getFilters()
 
-  if (error) throw error
+  allListings = await getPublished(search, minPrice, maxPrice, category)
+  renderListings(allListings)
+}
 
-  if (!listings?.length) return []
+async function handleDeleteListing(listingId) {
+  const listing = allListings.find((item) => item.id === listingId)
+  if (!listing) return
 
-  const listingsWithImage = await Promise.all(
-    listings.map(async (listing) => {
-      const { data: imageRows, error: imageError } = await supabase
-        .from('listing_images')
-        .select('public_url')
-        .eq('listing_id', listing.id)
-        .order('created_at', { ascending: true })
-        .limit(1)
+  if (!canManageListing(listing)) {
+    showToast('You can delete only your own listings.', 'warning')
+    return
+  }
 
-      if (imageError) throw imageError
+  const confirmed = window.confirm('Are you sure you want to delete this listing?')
+  if (!confirmed) return
 
-      return {
-        ...listing,
-        image_url: imageRows?.[0]?.public_url || FALLBACK_IMAGE,
+  try {
+    showLoader()
+    await removeListing(listingId)
+    showToast('Listing deleted successfully.', 'success')
+    await loadListings()
+  } catch (error) {
+    showToast(error?.message || 'Failed to delete listing.', 'danger')
+  } finally {
+    hideLoader()
+  }
+}
+
+function bindEvents() {
+  elements.searchBtn?.addEventListener('click', () => {
+    showLoader()
+    loadListings()
+      .catch((error) => {
+        showToast(error?.message || 'Failed to search listings.', 'danger')
+      })
+      .finally(() => {
+        hideLoader()
+      })
+  })
+
+  elements.categoryFilter?.addEventListener('change', () => {
+    showLoader()
+    loadListings()
+      .catch((error) => {
+        showToast(error?.message || 'Failed to filter listings.', 'danger')
+      })
+      .finally(() => {
+        hideLoader()
+      })
+  })
+
+  elements.listingsGrid?.addEventListener('click', (event) => {
+    const editButton = event.target.closest('[data-action="edit-listing"]')
+    if (editButton) {
+      const listingId = editButton.getAttribute('data-listing-id')
+      if (listingId) {
+        window.location.href = `/listing-edit.html?id=${listingId}`
       }
-    })
-  )
+      return
+    }
 
-  return listingsWithImage
+    const deleteButton = event.target.closest('[data-action="delete-listing"]')
+    if (deleteButton) {
+      const listingId = deleteButton.getAttribute('data-listing-id')
+      if (listingId) {
+        handleDeleteListing(listingId)
+      }
+    }
+  })
 }
 
 async function init() {
   showLoader()
 
   try {
-    await initNavbar()
+    const navbarState = await initNavbar()
+    currentUser = navbarState.user
 
-    allListings = await fetchPublishedListings()
-    renderListings(allListings)
-
-    elements.searchBtn?.addEventListener('click', applyClientFilters)
+    await loadListings()
+    bindEvents()
   } catch (error) {
     console.error('Failed to initialize homepage:', error)
     showToast(error?.message || 'Failed to initialize homepage.', 'danger')
