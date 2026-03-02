@@ -85,6 +85,26 @@ ALTER TABLE public.listings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.listing_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 
+-- =====================================================
+-- 5.1) Ensure API roles have base privileges (RLS still applies)
+-- =====================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+
+GRANT SELECT ON TABLE public.profiles TO anon, authenticated;
+GRANT INSERT, UPDATE ON TABLE public.profiles TO authenticated;
+
+GRANT SELECT ON TABLE public.user_roles TO authenticated;
+GRANT ALL ON TABLE public.user_roles TO service_role;
+
+GRANT SELECT ON TABLE public.listings TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON TABLE public.listings TO authenticated;
+
+GRANT SELECT ON TABLE public.listing_images TO anon, authenticated;
+GRANT INSERT, DELETE ON TABLE public.listing_images TO authenticated;
+
+GRANT SELECT ON TABLE public.comments TO authenticated;
+GRANT INSERT, DELETE ON TABLE public.comments TO authenticated;
+
 -- profiles
 CREATE POLICY profiles_select_all
 ON public.profiles

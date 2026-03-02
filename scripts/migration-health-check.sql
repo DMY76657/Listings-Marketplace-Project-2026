@@ -83,7 +83,16 @@ SELECT
 FROM required_policies rp
 ORDER BY rp.tablename, rp.policyname;
 
--- 5) Optional summary block (single-row pass/fail)
+-- 5) Privileges check for API roles
+SELECT
+  'listings_select_priv_anon' AS check_name,
+  has_table_privilege('anon', 'public.listings', 'SELECT') AS ok;
+
+SELECT
+  'listings_select_priv_authenticated' AS check_name,
+  has_table_privilege('authenticated', 'public.listings', 'SELECT') AS ok;
+
+-- 6) Optional summary block (single-row pass/fail)
 WITH checks AS (
   SELECT EXISTS (
     SELECT 1
@@ -139,7 +148,9 @@ WITH checks AS (
         ('comments', 'comments_insert'),
         ('comments', 'comments_delete')
       )
-  ) AS all_policies_present
+  ) AS all_policies_present,
+  has_table_privilege('anon', 'public.listings', 'SELECT') AS anon_can_select_listings,
+  has_table_privilege('authenticated', 'public.listings', 'SELECT') AS authenticated_can_select_listings
 )
 SELECT
   is_admin_ok,
@@ -147,5 +158,15 @@ SELECT
   trigger_ok,
   all_rls_enabled,
   all_policies_present,
-  (is_admin_ok AND handle_new_user_ok AND trigger_ok AND all_rls_enabled AND all_policies_present) AS all_checks_passed
+  anon_can_select_listings,
+  authenticated_can_select_listings,
+  (
+    is_admin_ok
+    AND handle_new_user_ok
+    AND trigger_ok
+    AND all_rls_enabled
+    AND all_policies_present
+    AND anon_can_select_listings
+    AND authenticated_can_select_listings
+  ) AS all_checks_passed
 FROM checks;
